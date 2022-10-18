@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
-import os
-
 import aws_cdk as cdk
 
-from cdk_aws_wordpress.cdk_aws_wordpress_stack import CdkAwsWordpressStack
-
+from stacks.ec2_stack import CdkEc2Stack
+from stacks.rds_stack import CdkRdsStack
+from stacks.redis_stack import CdkRedisStack
+from stacks.vpc_stack import CdkVpcStack
 
 app = cdk.App()
-CdkAwsWordpressStack(app, "CdkAwsWordpressStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+env_us = cdk.Environment(account='227656558133', region='us-east-1')
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+vpc_stack = CdkVpcStack(app, 'cdk-vpc',
+                        env=env_us)
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+rds_stack = CdkRdsStack(app, 'cdk-rds',
+                        vpc=vpc_stack.vpc,
+                        rds_sg=vpc_stack.rds_sg,
+                        env=env_us)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+redis_stack = CdkRedisStack(app, 'cdk-redis',
+                            vpc=vpc_stack.vpc,
+                            redis_sg=vpc_stack.redis_sg,
+                            env=env_us)
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+ec2_stack = CdkEc2Stack(app, 'cdk-ec2',
+                        vpc=vpc_stack.vpc,
+                        redis_cluster=redis_stack.redis_cluster,
+                        rds_cluster=rds_stack.aurora_cluster,
+                        asg_sg=vpc_stack.asg_sg,
+                        alb_sg=vpc_stack.alb_sg,
+                        efs_sg=vpc_stack.efs_sg,
+                        env=env_us)
 
 app.synth()
